@@ -1,0 +1,11 @@
+* TODO put all .abemacs.d code into .emacs.d and push to git
+#+begin_src emacs-lisp
+  (package-initialize)
+  
+(org-babel-do-load-languages
+  'org-babel-load-languages
+  '((emacs-lisp . t)
+    (python . t)))
+
+(setq org-confirm-babel-evaluate nil)
+

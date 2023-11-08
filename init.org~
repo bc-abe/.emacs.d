@@ -1,0 +1,1019 @@
+#+STARTUP: overview
+#+TITLE: A B E M A C S
+#+PROPERTY: header-args:emacs-lisp :tangle init.el
+
+
+* TODO put all .abemacs.d code into .emacs.d and push to git
+#+begin_src emacs-lisp
+
+  (org-babel-do-load-languages
+    'org-babel-load-languages
+    '((emacs-lisp . t)
+      (python . t)))
+
+  (setq org-confirm-babel-evaluate nil)
+
+
+  
+;; This is needed as of Org 9.2
+(require 'org-tempo)
+
+(add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+(add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+(add-to-list 'org-structure-template-alist '("py" . "src python"))
+
+#+end_src
+
+* Startup
+I keep the basics 
+
+#+begin_src emacs-lisp
+   ;; turn off blinking cursor
+   (blink-cursor-mode 0)
+
+	  ;; something about letting my machine work hard during start up 
+	 (setq gc-cons-threshold (* 1000 1000 1000))
+
+	 (setq max-lisp-eval-depth 10000)
+
+  (require 'package)
+  (add-to-list 'package-archives '("gnu"   . "https://elpa.gnu.org/packages/"))
+  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/"))
+  (package-initialize)
+
+  (unless (package-installed-p 'use-package)
+    (package-refresh-contents)
+    (package-install 'use-package))
+  (eval-and-compile
+    (setq use-package-always-ensure t
+	  use-package-expand-minimally t))
+
+
+	;; make the frame transparent, including the text so the ~org-stars~ match the transparency of the of the background transparency.
+	;; Otherwise dark stars can bee seen (change the number (0-100) to change the opacity)
+	(set-frame-parameter nil 'alpha 90)
+	(add-to-list 'default-frame-alist ' (alpha . 90))
+
+       ;; pushes all custom variables to a differetn file than init.el 
+	 (setq custom-file (concat user-emacs-directory "/custom.el"))
+
+      (setq global-tree-undo-mode t)
+
+ ;keybindings 
+    (use-package general
+      :config
+      (general-create-definer ae/leader-keys
+        :keymaps '(normal insert visual emacs nov dired)
+        :prefix "SPC"
+        :global-prefix "C-SPC"))
+#+end_src
+
+** Use-package
+
+#+begin_src emacs-lisp
+  ;; this install any declared package without using :ensure t
+  (setq use-package-always-ensure t)
+  (setq use-package-always-defer nil)
+  (setq use-package-verbose t)
+  (setq use-package-compute-statistics t)
+#+end_src
+
+** Benchmark
+Shows how fast Emacs booted
+
+#+begin_src emacs-lisp
+   (use-package benchmark-init
+  :ensure t
+     :config
+     ;; disable collection of benchmark data after init
+     (add-hook 'after-init-hook 'benchmark-init/deactivate)
+     )
+
+  ;; you can change ae to anything ( your name + macs?)
+  ;; Just keep is consistent per function
+   (defun ae/display-startup-time ()
+     (message "Emacs loaded in %s with %d garbage collections."
+	  (format "%.2f seconds"
+		(float-time
+	     (time-subtract after-init-time before-init-time)))
+	  gcs-done))
+
+	(add-hook 'emacs-startup-hook #'ae/display-startup-time)
+
+#+end_src
+
+** Evil
+Emacs Vi Layer = Evil. Gives Vim-like keybindings. I can hardly use a program without this.
+
+#+begin_src emacs-lisp
+	     ;; read the documentation on evil-mode to see what they do
+       (use-package evil
+	  :init
+	  (progn
+	    (setq evil-undo-system 'undo-redo)
+	    (setq evil-want-keybinding nil)
+	    )
+	  :config
+	  (evil-mode 1)
+	  (define-key evil-insert-state-map (kbd "C-g") 'evil-normal-state)
+	  (define-key evil-insert-state-map (kbd "C-h") 'evil-delete-backward-char-and-join)
+
+	  ;; Use visual line motions even outside of visual-line-mode buffers
+	  (evil-global-set-key 'motion "j" 'evil-next-visual-line)
+	  (evil-global-set-key 'motion "k" 'evil-previous-visual-line)
+	  (setq evil-want-integration t)
+	  (setq evil-want-C-u-scroll t)
+	  (setq evil-want-C-i-jump nil)
+
+	  (evil-set-initial-state 'messages-buffer-mode 'normal)
+
+	  (evil-set-initial-state 'dashboard-mode 'normal)
+	  :custom (evil-undo-system 'undo-redo))
+
+
+	(use-package evil-collection
+	  :after evil
+	  :config
+	  (evil-collection-init))
+
+	(use-package evil-escape
+	  :after evil)
+	(setq-default evil-escape-key-sequence "jk")
+	(setq-default evil-escape-delay 0.20)
+	(evil-escape-mode t)
+
+	(use-package evil-surround
+	  :config
+	  (global-evil-surround-mode 1))
+
+(add-to-list 'load-path "~/.emacs.d/plugins/evil-org-mode")
+(require 'evil-org)
+(add-hook 'org-mode-hook 'evil-org-mode)
+(evil-org-set-key-theme '(navigation insert textobjects additional calendar))
+(require 'evil-org-agenda)
+(evil-org-agenda-set-keys)
+
+
+
+       (use-package all-the-icons)
+#+end_src
+
+* UI
+For features to make it nice to use
+
+** General
+
+#+begin_src emacs-lisp
+   (load-theme 'abemacs-dark t)
+
+   ;; sets location for save-place-file
+   (setq save-place-file "~/Documents/4-resources/saveplace")
+   ;; saves cursor location in each file
+   (save-place-mode 1)
+
+   (scroll-bar-mode -1)        ; Disable visible scrollbar
+   (menu-bar-mode -1)
+   (set-fringe-mode 50)        ; Give some breathing room
+   (tool-bar-mode -1)          ; Disable the toolbar
+   (tooltip-mode -1)           ; Disable tooltips
+   (global-auto-revert-mode 1)
+
+   (setq sentence-end-double-space nil)
+   (setq global-visual-line-mode t)
+   (setq auto-window-vscroll nil)
+   (setq next-screen-context-lines 0)
+
+    (use-package rainbow-delimiters
+      :hook (prog-mode . rainbow-delimiters-mode))
+
+
+  ;; Switch from Olivetti to Visual Line Mode
+  (use-package olivetti)
+  (setq olivetti-body-width 55)
+  (defun ae/olivetti-on ()
+   (interactive)
+   ;; disable visual-fill before calling olivetti
+   (visual-fill-column-mode 0)
+   (olivetti-mode 1))
+
+   (defun ae/olivetti-off ()
+   (interactive)
+   ;; disable visual-fill before calling olivetti
+   (olivetti-mode 0)
+   (visual-fill-column-mode 1))
+
+
+   (ae/leader-keys
+     "on"  '(ae/olivetti-on :which-key "Olivetti Mode")
+     "of"  '(ae/olivetti-off :which-key "Olivetti Mode")
+     "ow"  '(olivetti-set-width :which-key "Set Olivetti Width"))
+
+
+  (use-package treemacs) 
+  (use-package treemacs-evil)
+#+end_src
+ 
+** Vertico/Company/WhichKey    
+#+begin_src emacs-lisp
+   (use-package which-key
+     :init (which-key-mode)
+     :diminish which-key-mode
+     :config
+     (setq which-key-idle-delay 0.5))
+
+  ;; Enable vertico
+  (use-package vertico
+    :init
+    (vertico-mode 1)
+   (setq vertico-resize t)
+   (setq vertico-cycle t)
+    )
+
+  ;; Persist history over Emacs restarts. Vertico sorts by history position.
+  (use-package savehist
+    :init
+    (savehist-mode))
+  
+  ;; Optionally use the `orderless' completion style.
+  (use-package orderless
+    :init
+    ;; Configure a custom style dispatcher (see the Consult wiki)
+    (setq completion-styles '(orderless basic)
+          completion-category-defaults nil
+          completion-category-overrides '((file (styles partial-completion)))))
+
+  (use-package helpful
+    :custom
+    (counsel-describe-function-function #'helpful-callable)
+    (counsel-describe-variable-function #'helpful-variable)
+    :bind
+    ([remap describe-function] . counsel-describe-function)
+    ([remap describe-command] . helpful-command)
+    ([remap describe-variable] . counsel-describe-variable)
+    ([remap describe-key] . helpful-key))
+#+end_src
+
+*** Hide Lines
+
+#+begin_src emacs-lisp
+  (use-package hide-lines
+      :commands find-file)
+
+  (defun hide-@ ()
+    "Highlight certain lines…"
+        (progn
+          (hide-lines-matching "^\@" )))
+  (add-hook 'find-file-hook 'hide-@)
+  (defun hide-@ ()
+    "Highlight certain lines…"
+        (progn
+          (hide-lines-matching "^\@" )))
+  (add-hook 'find-file-hook 'hide-@)
+
+
+
+  (defun hide-drawer-end ()
+    "Hide lines that start with :end:"
+        (progn
+          (hide-lines-matching "^:end:" )))
+#+end_src
+
+** Dired
+
+#+begin_src emacs-lisp
+
+	(use-package all-the-icons-dired
+	  :hook (dired-mode . all-the-icons-dired-mode))
+
+	(use-package dired-open
+	  :config
+	  ;; Doesn't work as expected!
+	  ;;(add-to-list 'dired-open-functions #'dired-open-xdg t)
+	  (setq dired-open-extensions '(("png" . "feh")
+					("mkv" . "mpv"))))
+
+	(use-package dired-hide-dotfiles
+	  :hook (dired-mode . dired-hide-dotfiles-mode)
+	  :config
+	  (evil-collection-define-key 'normal 'dired-mode-map
+	    "H" 'dired-hide-dotfiles-mode))
+
+       (setq global-tree-undo-mode t)
+
+       (use-package hide-mode-line)
+       ;(global-hide-mode-line-mode)
+
+    (use-package sensible-defaults
+	 :straight (:type git :host github :repo "hrs/sensible-defaults.el"))
+
+     (setq dired-listing-switches "-laGh1v --group-directories-first")
+#+end_src
+
+** Fonts
+
+#+begin_src emacs-lisp
+  (set-face-attribute 'default nil :family "SauceCodePro NF" :height 130)
+  (set-face-attribute 'variable-pitch nil :family "Ysabeau Office" :height 1.2)
+  (set-face-attribute 'default nil :weight 'regular)
+
+
+  (setq org-src-fontify-natively t) ; Fontify source code blocks
+  (setq org-hide-emphasis-markers t)
+  
+  (use-package mixed-pitch)
+#+end_src
+
+** Modeline
+
+#+begin_src emacs-lisp
+
+    (defun my/get-current-file-name ()
+    "Return the current file name without the .org extension."
+    (when buffer-file-name
+      (concat "📃 "(upcase (file-name-sans-extension (file-name-nondirectory buffer-file-name))))))
+
+  (defun my/get-clock-info ()
+    "Return the current clocked-in task and its duration."
+    (let ((clock (org-clock-is-active)))
+      (if clock
+          (format "⏳ %s for %s"
+                  (nth 5 clock) ; Task description
+                  (org-minutes-to-clocksum-string (org-clock-get-clocked-time)))
+        "...")))
+
+  (setq-default mode-line-format
+    '("%e"
+      ;; mode-line-front-space
+      ;; mode-line-mule-info
+      ;; mode-line-client
+      ;; mode-line-modified
+      ;; mode-line-remote
+      ;; mode-line-frame-identification
+      ;; mode-line-buffer-identification
+      "  "
+      (:eval (my/get-current-file-name))
+      "  "
+      (:eval (my/get-clock-info))
+      "  "
+     ;; mode-line-position
+      (vc-mode vc-mode)
+      "  "
+     ;; mode-line-modes
+     ;; mode-line-misc-info
+     ;; mode-line-end-spaces
+  ))
+
+#+end_src
+
+* UX
+
+#+begin_src emacs-lisp
+   (setq mouse-wheel-progressive-speed nil)
+   (setq hscroll-step 1)
+   (setq hscroll-margin 1)
+   (setq scroll-conservatively 101)
+
+   ;; Visual Search and Replace
+    (use-package visual-regexp
+    :commands vr/replace)
+
+
+    (use-package company
+      :config
+      (add-hook 'after-init-hook 'global-company-mode))
+
+    (use-package flycheck
+      :config
+      (global-flycheck-mode))
+
+    (use-package yasnippet
+      :after init )
+      (setq yas-snippet-dirs '("~/Documents/4-resources/yas-snippets/"))
+      (require 'yasnippet)
+      (yas-global-mode 1)
+      (yas-reload-all)
+
+   ; treats frames as buffer
+   ; (use-package framemove
+   ; (setq framemove-hook-into-windmove t))
+
+  ;; easy way to make keybindings 
+
+
+  
+   (use-package bookmark+
+   :custom
+   (setq bookmark-default-file "~/Documents/bookmarks"))
+#+end_src
+
+* Writing/Org
+
+** Basic
+
+#+begin_src emacs-lisp
+  (setq org-hide-leading-stars t) 
+
+
+  (setq org-directory "~/Documents/")
+  (setq org-html-html5-fancy t)
+  (setq org-return-follows-link t)
+  (setq org-html-htmlize-output-type nil)
+
+  
+#+end_src
+
+** Org UI
+
+#+begin_src emacs-lisp
+  (defun ae/org-mode-setup ()
+    (org-indent-mode)
+    (setq line-spacing 0.0)
+    (ae/olivetti-on)
+    (visual-line-mode 1)
+   ;(mixed-pitch-mode)
+    (lambda () (progn
+       (setq left-margin-width 10)
+       (setq right-margin-width 10)
+       (set-window-buffer nil (current-buffer)))))
+
+  (setq org-startup-indented t
+        org-ellipsis "  " ;; folding symbol
+        org-agenda-block-separator ""
+        org-fontify-whole-heading-line t
+        org-fontify-done-headline t
+        org-fontify-quote-and-verse-blocks t)
+
+  (setq org-indent-indentation-per-level 4
+        org-list-indent-offset 4)
+
+
+  (use-package org-sticky-header
+  :custom
+  (setq org-sticky-header-heading-star "")
+  (setq org-sticky-header-always-show-header nil)
+  (add-hook 'org-mode-hook #'org-sticky-header-mode))
+  
+  (use-package hide-lines
+      :commands find-file)
+
+  (defun hide-@ ()
+    "Highlight certain lines…"
+        (progn
+          (hide-lines-matching "^\@" )))
+  (add-hook 'find-file-hook 'hide-@)
+  (defun hide-@ ()
+    "Highlight certain lines…"
+        (progn
+          (hide-lines-matching "^\@" )))
+  (add-hook 'find-file-hook 'hide-@)
+
+
+
+  (defun hide-drawer-end ()
+    "Hide lines that start with :end:"
+        (progn
+          (hide-lines-matching "^:end:" )))
+  (add-hook 'org-present-mode-hook 'hide-drawer-end)
+  (add-hook 'org-present-mode-quit-hook 'hide-lines-show-all)
+#+end_src
+
+** Org UX
+
+#+begin_src emacs-lisp
+      ;; Keep at bottom of Org Ux 
+
+      (setq org-agenda-start-with-log-mode t)
+      (setq org-log-done 'time)
+      (setq org-log-into-drawer t)
+
+      (require 'org-habit)
+      (add-to-list 'org-modules 'org-habit)
+      (setq org-habit-graph-column 60)
+
+      (setq org-todo-keywords
+            '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d!)")
+              (sequence "idea(i)" "plan(p)" "draft(r)" "record(e)" "edit(E)" "WAIT(m)" "cold(c)" "|" "COMPLETED(c)" "CANCEL(k@)")))
+
+      (setq org-refile-targets
+            '(("Archive.org" :maxlevel . 1)
+              ("capital.org" :maxlevel . 1)))
+
+      ;; Save Org buffers after refiling!
+      (advice-add 'org-refile :after 'org-save-all-org-buffers)
+
+      (setq org-tag-alist
+        '((:startgroup)
+          (:endgroup)
+          ("@errand" . ?E)
+          ("@next" . ?E)
+          ("@home" . ?H)
+          ("@work" . ?W)
+          ("publish" . ?P)
+          ("note" . ?n)
+          ("idea" . ?i)))
+      
+      (defun ae/org-note (str)
+      "Insert STR surrounded by double angle brackets and store it in the kill ring."
+        (interactive "sReference Point: ")
+        (kill-new (format "%s" str))
+        (insert (format "<<%s>>" str))
+        (org-capture nil "a")
+        (evil-insert-state))
+
+     (setq org-capture-templates
+       '(("i" "Inbox" entry
+         (file+headline "3-capital/dashboard.org" "Inbox")
+          "* %?")
+
+         ("j" "journal" plain
+           (file+olp+datetree "3-capital/dashboard.org" "Logs" "Journal")
+           "%<%I:%M %p>\n%?"
+           :empty-lines 1)
+
+          ("d" "distraction" plain
+             (file+olp+datetree "3-capital/dashboard.org" "Logs" "Disctraction")
+           "%<%I:%M %p>\n%?"
+           :empty-lines 1)
+
+         ("p" "prayers" plain
+          (file+olp+datetree "3-capital/dashboard.org" "Logs" "Prayers")
+          "%<%I:%M %p>\n%?"
+          :empty-lines 1)
+
+         ("h" "health")
+           ("hw" "Weight" table-line
+           (file+headline "3-capital/dashboard.org" "Logs" "Weight")
+            "| %<%D> | %^{Weight} lb | %<%I:%M %p> | %^{Notes} |" :kill-buffer t)
+
+           ("hf" "Food Tracker" entry
+              (file+olp+datetree "3-capital/dashboard.org" "Logs" "Food")
+              "* %<%I:%M %p> %^{Catergory|Breakfast|Lunch|Dinner|Snack|}\n %?" :kill-buffer t)
+
+           ("hs" "Strength Train" entry
+             (file+olp+datetree "3-capital/health.org" "Strength")
+             "* %<%I:%M %p> %?" :kill-buffer t)))
+
+               (defun ae/create-project-folder (custom-text)
+                 "Create a folder with date and CUSTOM-TEXT, replacing spaces with hyphens,
+                  create and open 'notes.org', and open Dired in the folder."
+                 (interactive "sProject Title__tags: ")
+                 (let* ((custom-text-without-spaces (replace-regexp-in-string " " "-" custom-text))
+                        (folder-name (concat date "--" custom-text-without-spaces))
+                        (folder-path (expand-file-name (concat "~/Documents/2-projects/" folder-name)))
+                        (notes-org-file (expand-file-name "index.org" folder-path)))
+                   (make-directory folder-path t)
+                   (write-region "" nil notes-org-file)
+                   ; Create an empty 'notes.org' file
+                   (find-file notes-org-file)
+                   ; Open index.org' in Emacs
+                   (dired folder-path)))
+
+
+     (use-package ace-link)
+
+    (ae/leader-keys
+      "a"  '(:ignore t :which-key "ace")
+      "al" '(ace-link :which-key "ace-link")
+      "aw" '(ace-window :which-key "go to window")
+      "as" '(ace-swap-window :which-key "swap window")
+      "ad" '(ace-delete-window :which-key "delete window"))
+  
+     (use-package ace-window)
+
+   ; Exporting Defaults
+     (setq
+      org-export-with-timestamps nil
+      org-export-with-toc nil
+      org-export-with-section nil
+      org-export-with-section-numbers nil
+      org-export-with-date nil
+      org-export-with-author nil
+      org-html-preamble nil
+      org-html-validation-link nil
+      org-html-postamble nil)
+
+
+   (use-package org-modern
+     :config
+   (setq org-modern-internal-target '(" " t " ")))
+
+
+
+   (setq
+    ;; Edit settings
+    org-auto-align-tags nil
+    org-tags-column 0
+    org-catch-invisible-edits 'show-and-error
+    org-special-ctrl-a/e t
+    org-insert-heading-respect-content t
+
+    ;; Org styling, hide markup etc.
+    org-hide-emphasis-markers t
+    org-pretty-entities t
+
+    ;; Agenda styling
+    org-agenda-tags-column 0
+    org-agenda-block-separator ?─
+    org-agenda-time-grid
+    '((daily today require-timed)
+      (800 1000 1200 1400 1600 1800 2000)
+      " ┄┄┄┄┄ " "┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄")
+    org-agenda-current-time-string
+    "⭠ now ─────────────────────────────────────────────────")
+
+   (global-org-modern-mode)
+
+
+   (setq org-agenda-files '("~/Documents/3-capital/dashboard.org"))
+   (setq org-modern-star '("*"))
+
+   (use-package svg-tag-mode
+      :after init
+      :config
+      (global-svg-tag-mode))
+      (defun org-agenda-show-svg ()
+      (let* ((case-fold-search nil)
+        (keywords (mapcar #'svg-tag--build-keywords svg-tag--active-tags))
+        (keyword (car keywords)))
+        (while keyword
+        (save-excursion
+          (while (re-search-forward (nth 0 keyword) nil t)
+          (overlay-put (make-overlay
+          (match-beginning 0) (match-end 0))
+               'display  (nth 3 (eval (nth 2 keyword)))) ))
+          (pop keywords)
+          (setq keyword (car keywords)))))
+
+   (add-hook 'org-agenda-finalize-hook #'org-agenda-show-svg)
+   
+  (use-package svg-lib)
+   
+  (use-package org
+    :hook (org-mode . ae/org-mode-setup))
+#+end_src
+
+** Org Re-Reveal
+
+#+begin_src emacs-lisp
+   (use-package org-re-reveal
+  :custom
+  (setq org-re-reveal-root "file:///home/abep/Documents/4-resources/reveal.js")
+  (setq org-re-reveal-control nil)
+  (setq org-re-reveal-default-frag-style "fade-in-then-semi-out")
+  (setq org-re-reveal-title-slide t)
+  (setq org-re-reveal-transition "none")
+  (setq org-re-reveal-transition-speed "fast")
+  (setq org-re-reveal-toc-footer nil )
+  (setq org-re-reveal-slide-number nil )
+  (setq org-re-reveal-control nil )
+  (setq org-re-reveal-progress nil )
+  (setq org-re-reveal-transistion-speed "fast" )
+  (setq org-re-reveal-background-transition "none" )
+  (setq org-re-reveal-single-file nil )
+  (setq org-re-reveal-hlevel 2 )
+  (setq org-export-with-properties t)
+  (setq org-re-reveal-init-script " 
+      autoAnimateStyles: [
+     'opacity',
+     'color',
+     'background-color',
+     'padding',
+     'font-size',
+     'line-height',
+     'letter-spacing',
+     'border-width',
+     'border-color',
+     'border-radius',
+     'outline',
+     'outline-offset'
+                         ],"))
+#+end_src
+
+** Citar
+
+#+begin_src emacs-lisp
+  
+  (use-package citar
+    :no-require
+    :custom
+    (org-cite-global-bibliography '("~/Documents/1-notes/bib.bib"))
+    (org-cite-insert-processor 'citar)
+    (org-cite-follow-processor 'citar)
+    (org-cite-activate-processor 'citar)
+    (citar-bibliography org-cite-global-bibliography)
+    ;; optional: org-cite-insert is also bound to C-c C-x C-@
+    :bind
+    )
+
+    (use-package citar-embark
+      :after citar embark
+      :no-require
+      :config (citar-embark-mode))
+
+ (setq citar-at-point-function 'embark-act) 
+
+      (ae/leader-keys
+        "ic"  '(org-cite-insert :which-key "Insert citation")
+       )
+#+end_src
+
+** Present
+
+#+begin_src  emacs-lisp
+  (use-package org-present)
+  (defun ae/org-present-prepare-slide (buffer-name heading)
+  ;; Show only top-level headlines
+  (org-overview)
+  ;; Unfold the current entry
+  (org-show-entry)
+  ;; Show only direct subheadings of the slide but don't expand them
+  (org-show-children))
+
+  (defun ae/org-present-start ()
+    ;; Tweak font sizes
+    (setq-local face-remapping-alist '((default (:height 1.5) variable-pitch)
+      (org-document-title (:height 1.75) org-document-title)
+      (header-line (:background "010101" :foreground "#999" :box (:line-width (1 . 40) :color "#010101") :height 2.0 :family "Ysabeau Office"))
+      (org-code (:height 1.55) org-code)
+      (org-verbatim (:height 1.55) org-verbatim)
+      (org-block (:height 1.25) org-bloack)))
+
+    (org-display-inline-images)
+    (variable-pitch-mode 1)
+    (olivetti-mode 1)
+ ;  (ae/hide-stars-mode)
+    )
+
+  (defun ae/org-present-end ()
+    ;; Reset font customizations
+    (setq-local face-remapping-alist '((default variable-pitch default)))
+
+    (org-remove-inline-images)
+    (variable-pitch-mode 0)
+    (olivetti-mode 0)
+    )
+
+  ;; Turn on variable pitch fonts in Org Mode buffers
+
+  ;; Register hooks with org-present
+  (add-hook 'org-present-mode-hook 'ae/org-present-start)
+  (add-hook 'org-present-mode-hook #'chunyang-org-mode-hide-stars)
+  (add-hook 'org-present-mode-quit-hook 'ae/org-present-end)
+  (add-hook 'org-present-after-navigate-functions 'ae/org-present-prepare-slide)
+#+end_src
+
+* Keybindings
+
+#+begin_src emacs-lisp
+    (ae/leader-keys
+      "SPC"  '(execute-extended-command :which-key "M x")
+
+      "b"  '(:ignore t :which-key "buffer")
+      "bp"  '(previous-buffer :which-key "previous buffer")
+      "bs"  '(switch-to-buffer t :which-key "switch-to-buffer")
+
+      "bb" '(bookmark-jump :which-key "Bookmarks")
+
+      "C" '(org-capture :which-key "Org Capture")
+
+      "c" '(:ignore t :which-key "clone")
+      "ci" '(clone-indirect-buffer-other-window :which-key "clone indirect buffer")
+
+      "e"  '(:ignore t :which-key "eval")
+      "E"  '(formatted-copy :which-key "RTF")
+      "er" '(eval-region :which-key "evaluate region")
+      "eb" '(eval-buffer :which-key "evaluate buffer")
+      "f"  '(:ignore t :which-key "file")
+      "fs" '(save-buffer :which-key "Save Buffer")
+      "ff" '(find-file :which-key "Find File")
+
+      "g" '(avy-goto-char-2 :which-key "Go to Character (Avy)")
+
+      "in"  '(ae/org-note t :which-key "ins target note")
+
+      "h"  '(:ignore t :which-key "hide")
+      "hm" '(hide-mode-line-mode :which-key "hide mode line")
+      "hM" '(global-hide-mode-line-mode :which-key "Global hide mode line")
+
+      "l"  '(:ignore t :which-key "link")
+      "lc" '(org-cliplink :which-key )
+      "ld" '(+org/remove-link :which-key )
+      "lf" '(ace-link :which-key  )
+      "li" '(org-id-store-link :which-key )
+      "ll" '(org-insert-link :which-key  )
+      "lL" '(org-insert-all-links :which-key )
+      "ls" '(org-store-link :which-key )
+      "lS" '(org-insert-last-stored-link :which-key )
+      "lt" '(org-toggle-link-display :which-key )
+
+      "m"  '(:ignore t :which-key "Org")
+      "mA" '(org-archive-subtree :which-key )
+      "me" '(org-export-dispatch :which-key )
+      "mf" '(org-footnote-action :which-key )
+      "mh" '(org-toggle-heading :which-key )
+      "mi" '(org-toggle-item :which-key )
+      "mI" '(org-id-get-create :which-key )
+      "mk" '(org-babel-remove-result :which-key )
+      "mK" '(+org/remove-result-blocks :which-key )
+      "mo" '(org-set-property :which-key )
+      "mq" '(org-set-tags-command :which-key )
+      "mt" '(org-todo :which-key )
+      "mT" '(org-todo-list :which-key )
+      "mx" '(org-toggle-checkbox :which-key )
+
+      "mb"  '(:ignore t :which-key "Tables")
+      "mb-" '(org-table-insert-hline :which-key )
+      "mba" '(org-table-align :which-key )
+      "mbb" '(org-table-blank-field :which-key )
+      "mbc" '(org-table-create-or-convert-from-region :which-key )
+      "mbe" '(org-table-edit-field :which-key )
+      "mbf" '(org-table-edit-formulas :which-key )
+      "mbh" '(org-table-field-info :which-key )
+      "mbs" '(org-table-sort-lines :which-key )
+      "mbr" '(org-table-recalculate :which-key )
+      "mbr" '(org-table-recalculate :which-key )
+      "mbR" '(org-table-recalculate-buffer-tables :which-key )
+
+      "mbd" '(:ignore t :which-key "Delete")
+
+      "mbdc"'(org-table-delete-column :which-key )
+      "mbdr"'(org-table-kill-row :which-key )
+
+      "mbi"  '(:ignore t :which-key "Tables")
+      "mbic" '(org-table-insert-column :whichkey )
+      "mbih" '(org-table-insert-hline :whichkey )
+      "mbir" '(org-table-insert-row :whichkey )
+      "mbiH" '(org-table-hline-and-move :whichkey )
+
+      "mbt"  '(:ignore t :which-key "Toggle")
+      "mbtd" '(org-table-toggle-formula-debugger :whichkey )
+      "mbtb" '(org-table-toggle-coordinate-overlays :whichkey )
+
+      "mc"  '(:ignore t :which-key "Clock")
+      "mcc" '(org-clock-cancel :whichkey )
+      "mcd" '(org-clock-mark-default-task :whichkey )
+      "mce" '(org-clock-modify-effort-estimate :whichkey )
+      "mcE" '(org-set-effort :whichkey )
+      "mcg" '(org-clock-goto :whichkey )
+      "mcl" '(+org/toggle-last-clock :whichkey )
+      "mci" '(org-clock-in :whichkey )
+      "mcI" '(org-clock-in-last :whichkey )
+      "mco" '(org-clock-out :whichkey )
+      "mcr" '(org-resolve-clocks :whichkey )
+      "mcR" '(org-clock-report :whichkey )
+      "mct" '(org-evaluate-time-range :whichkey )
+      "mc=" '(org-clock-timestamps-up :whichkey )
+      "mc-" '(org-clock-timestamps-down :whichkey )
+
+      "md"  '(:ignore t :which-key "date/dateline")
+      "mdd" '(org-deadline :which-key )
+      "mds" '(org-schedule :which-key )
+      "mdt" '(org-time-stamp :which-key )
+      "mdT" '(org-time-stamp-inactive :which-key )
+
+      "mt"  '(:ignore t :which-key "Org Functions")
+      "mah" '(consult-org-heading :which-key )
+      "maa" '(consult-org-agenda :which-key )
+      "mac" '(org-clock-goto :which-key )
+      "mai" '(org-id-goto :which-key )
+      "mar" '(org-refile-goto-last-stored :which-key )
+      "mav" '(+org/goto-visible :which-key )
+      "max" '(org-capture-goto-last-stored :which-key )
+
+      "mm" '(  :ignore t :which-key "Org Refile")
+      "mm." '(+org/refile-to-current-file :which-key )
+      "mmc" '(+org/refile-to-running-clock :which-key )
+      "mml" '(+org/refile-to-last-location :which-key )
+      "mmf" '(+org/refile-to-file :which-key )
+      "mmo" '(+org/refile-to-other-window :which-key )
+      "mmO" '(+org/refile-to-other-buffer :which-key )
+      "mmv" '(+org/refile-to-visible :which-key )
+      "mmr" '(org-refile :which-key )
+      "mmR" '(org-refile-reverse :which-key )
+
+      "ms"  '(:ignore t :which-key "Org Tree/Subtree")
+      "msa" '(org-toggle-archive-tag :which-key )
+      "msb" '(org-tree-to-indirect-buffer :which-key )
+      "msc" '(org-clone-subtree-with-time-shift :which-key )
+      "msd" '(org-cut-subtree :which-key )
+      "msh" '(org-promote-subtree :which-key )
+      "msj" '(org-move-subtree-down :which-key )
+      "msk" '(org-move-subtree-up :which-key )
+      "msl" '(org-demote-subtree :which-key )
+      "msn" '(org-narrow-to-subtree :which-key )
+      "msr" '(org-refile :which-key )
+      "mss" '(org-sparse-tree :which-key )
+      "msA" '(org-archive-subtree :which-key )
+      "msN" '(widen :which-key )
+      "msS" '(org-sort :which-key )
+
+      "md"  '(:ignore t :which-key "Org Priority")
+      "mdd" '(org-priority-down :which-key )
+      "mdp" '(org-priority :which-key )
+      "mdu" '(org-priority-up :which-key )
+
+      "ma"  '(:ignore t :which-key "Org Agenda")
+      "mad" '(org-agenda-deadline :which-key )
+      "mas" '(org-agenda-schedule :which-key )
+
+      "mC"  '(:ignore t :which-key "Org Agenda Clock")
+      "mCc" '(org-agenda-clock-cancel :which-key )
+      "mCg" '(org-agenda-clock-goto :which-key )
+      "mCi" '(org-agenda-clock-in :which-key )
+      "mCo" '(org-agenda-clock-out :which-key )
+      "mCr" '(org-agenda-clockreport-mode :which-key )
+      "mCs" '(org-agenda-show-clocking-issues :which-key )
+
+      "mp"  '(:ignore t :which-key "Org Agenda Priority")
+      "mpd" '(org-agenda-priority-down :which-key )
+      "mpp" '(org-agenda-priority :which-key )
+      "mpu" '(org-agenda-priority-up :which-key )
+      "mpq" '(org-agenda-set-tags :which-key )
+      "mpr" '(org-agenda-refile :which-key )
+      "mpt" '(org-agenda-todo :which-key )
+
+      "on"  '(ae/olivetti-on :which-key "Olivetti Mode")
+      "of"  '(ae/olivetti-off :which-key "Olivetti Mode")
+      "ow"  '(olivetti-set-width :which-key "Set Olivetti Width")
+
+      "pp"  '(check-parens t :which-key "check parens")
+      "pm"  '(mixed-pitch-mode :which-key "Mixed Pitch Mode")
+
+      "r" '(vr/replace :which-key "Visual Regex")
+
+      "t"  '(:ignore t :which-key "toggles")
+      "tt" '(counsel-load-theme :which-key "choose theme")
+      "ts" '(text-scale-adjust :which-key "adjust font size")
+
+      "v"  '(vterm t :which-key "Terminal")
+
+      "w"  '(:ignore t :which-key "window")
+      "wj" '(evil-window-down :which-key "Switch to window down")
+      "wk" '(evil-window-up :which-key "Switch to window up")
+      "wh" '(evil-window-left :which-key "switch to window left")
+      "wl" '(evil-window-right :which-key "Switch to window right")
+      "ws" '(evil-window-split :which-key "Split window")
+      "wv" '(evil-window-vsplit :which-key "Split window vertically")
+      "wd" '(evil-window-delete :which-key "Delete window")
+      "wf" '(toggle-frame-fullscreen :which-key "Toggle fullscreen")
+      "wc"  '(make-frame t :which-key "create frame")
+      "wr"  '(delete-frame t :which-key "delete frame")
+      "wa"  '(ace-window t :which-key "Ace window")
+      "wH"  '(evil-window-decrease-width t :which-key  "Decrease width")
+      "wJ"  '(evil-window-decrease-height t :which-key "Decrease height")
+      "wK"  '(evil-window-increase-height t :which-key "Increase height")
+      "wL"  '(evil-window-increase-width t :which-key  "Increase width")
+  )
+
+
+  (general-define-key
+   :keymaps '(normal visual emacs)
+   ;; bind "C-c a" to 'org-agenda
+   "m" 'evil-forward-sentence-begin
+   "M" 'evil-backward-sentence-begin)
+
+  (defun unfill-paragraph (&optional region)
+    "Takes a multi-line paragraph and makes it into a single line of text."
+    (interactive (progn (barf-if-buffer-read-only) '(t)))
+    (let ((fill-column (point-max))
+          ;; This would override `fill-column' if it's an integer.
+          (emacs-lisp-docstring-fill-column t))
+      (fill-paragraph nil region)))
+
+  ;; Handy key definition
+  (define-key global-map "\M-Q" 'unfill-paragraph)
+
+  (ae/leader-keys
+    "fj"  '(open-index-file t :which-key "INDEX FILE"))
+#+end_src
+
+* Abemacs Functions
+#+begin_src emacs-lisp
+
+  (defun ae/hide-stars-mode ()
+    (font-lock-add-keywords
+     nil
+     '(("^\\*+ "
+        (0
+         (prog1 nil
+           (put-text-property (match-beginning 0) (match-end 0)
+                              'face (list :foreground
+                                          (face-attribute
+                                           'default :background)))))))))
+
+  
+  (org-add-link-type "html-class" #'ignore #'ae/html-class-link)
+  (defun ae/html-class-link (path desc format)
+  "Export org audio links to hmtl."
+  (cl-case format
+    (html (format "<span class=\"%s\">%s</span>" path (or desc "")))
+    ))
+
+
+  (org-add-link-type "html-style" #'ignore #'ae/html-style-link)
+  (defun ae/html-style-link (path desc format)
+  "Export org audio links to hmtl."
+  (cl-case format
+    (html (format "<span style=\"%s\">%s</span>" path (or desc "")))
+    ))
+#+end_src
