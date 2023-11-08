@@ -311,7 +311,8 @@ For features to make it nice to use
 
 #+begin_src emacs-lisp
   (set-face-attribute 'default nil :family "SauceCodePro NF" :height 130)
-  (set-face-attribute 'variable-pitch nil :family "SauceCodePro NF" :height 1.2)
+  (set-face-attribute 'variable-pitch nil :family "Ysabeau Office" :height 1.2)
+  (set-face-attribute 'default nil :weight 'regular)
 
 
   (setq org-src-fontify-natively t) ; Fontify source code blocks
